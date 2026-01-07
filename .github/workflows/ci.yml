@@ -22,28 +22,19 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
-          extensions: mbstring, pdo, pdo_pgsql
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_pgsql, redis, zip, opcache
       - name: Get Composer Cache
         uses: actions/cache@v4
         with:
           path: ~/.composer/cache
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('application/composer.lock') }}
           restore-keys: |
             ${{ runner.os }}-composer-
       - name: Install Composer dependencies
-        run: composer install --no-progress --no-suggest --prefer-dist
-      - name: Run migrations
-        env:
-          DB_CONNECTION: pgsql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          DB_DATABASE: apisen
-          DB_USERNAME: apisen
-          DB_PASSWORD: secret
-        run: |
-          php artisan key:generate || true
-          php artisan migrate --force || true
+        working-directory: application
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
       - name: Run tests
-        run: vendor/bin/pest --parallel || true
+        working-directory: application
+        run: vendor/bin/pest --parallel
 
