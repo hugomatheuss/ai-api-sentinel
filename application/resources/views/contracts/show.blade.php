@@ -61,7 +61,7 @@
             </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-            <a href="#" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+            <a href="{{ route('contract-versions.create', $contract) }}" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
                 + Upload Nova Versão
             </a>
         </div>
@@ -118,7 +118,7 @@
                                         {{ $version->created_at->format('d/m/Y H:i') }}
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-2">
-                                        <a href="#" class="text-indigo-600 hover:text-indigo-900">Download</a>
+                                        <a href="{{ route('contract-versions.download', $version) }}" class="text-indigo-600 hover:text-indigo-900">Download</a>
                                         @if ($version->validationReport)
                                             <a href="#" class="text-indigo-600 hover:text-indigo-900">Ver relatório</a>
                                         @endif
@@ -128,7 +128,7 @@
                                 <tr>
                                     <td colspan="5" class="px-3 py-8 text-center text-sm text-gray-500">
                                         Nenhuma versão cadastrada ainda.
-                                        <a href="#" class="font-medium text-indigo-600 hover:text-indigo-500">Faça o upload da primeira versão</a>
+                                        <a href="{{ route('contract-versions.create', $contract) }}" class="font-medium text-indigo-600 hover:text-indigo-500">Faça o upload da primeira versão</a>
                                     </td>
                                 </tr>
                             @endforelse
