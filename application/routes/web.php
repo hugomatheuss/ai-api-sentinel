@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ContractController;
+use App\Http\Controllers\ContractVersionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -18,4 +19,12 @@ Route::resource('apis', ApiController::class);
 
 // Rotas de Contracts (nested sob APIs)
 Route::resource('apis.contracts', ContractController::class)->shallow();
+
+// Rotas de Contract Versions
+Route::get('contracts/{contract}/versions/create', [ContractVersionController::class, 'create'])
+    ->name('contract-versions.create');
+Route::post('contracts/{contract}/versions', [ContractVersionController::class, 'store'])
+    ->name('contract-versions.store');
+Route::get('contract-versions/{contractVersion}/download', [ContractVersionController::class, 'download'])
+    ->name('contract-versions.download');
 
