@@ -72,11 +72,28 @@ Este projeto é desenvolvido como trabalho final de pós-graduação em Desenvol
 - DevOps
 - Uso responsável de IA em processos de engenharia
 
+## 🔒 Segurança
+
+**Importante**: Nunca commite credenciais reais no repositório!
+
+- Configure GitHub Secrets para CI/CD (veja `.github/SECURITY.md`)
+- Use `.env` local para desenvolvimento (nunca commite `.env`)
+- Rotacione credenciais regularmente
+- Para vulnerabilidades, veja `.github/SECURITY.md`
+
 ## Começando (guia rápido)
 
 Esses passos são um ponto de partida. Ajuste conforme a estrutura real do repositório.
 
-1. Clonar o repositório
+### Configuração Inicial de Secrets (GitHub)
+
+Antes de rodar o CI, configure os secrets no GitHub:
+
+1. Vá em `Settings` → `Secrets and variables` → `Actions`
+2. Adicione `CI_DB_PASSWORD` com valor de sua escolha (ex.: `test_secret_123`)
+3. Veja `.github/SECURITY.md` para lista completa
+
+### 1. Clonar o repositório
 
 ```bash
 git clone <repo-url>
@@ -108,8 +125,11 @@ npm install && npm run dev
 4. Executar testes
 
 ```bash
-# PHPUnit / Pest
+# Pest (framework de testes - recomendado)
 vendor/bin/pest --parallel
+
+# Ou via artisan
+php artisan test --parallel
 ```
 
 ## Contribuindo
