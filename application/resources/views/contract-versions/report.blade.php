@@ -117,10 +117,27 @@
                         </p>
                     </div>
                     <div class="border-t border-gray-200">
-                        <ul role="list" class="divide-y divide-gray-200">
-                            @foreach($latestReport->breaking_changes as $change)
-                            <li class="px-4 py-4 sm:px-6">
-                                <div class="flex items-start gap-3">
+                        @php
+                            $grouped = collect($latestReport->breaking_changes)->groupBy('category');
+                            $categoryLabels = [
+                                'endpoints' => 'Endpoints',
+                                'parameters' => 'Parameters',
+                                'responses' => 'Responses',
+                                'request_body' => 'Request Body',
+                                'schemas' => 'Schemas',
+                                'security' => 'Security',
+                                'other' => 'Other',
+                            ];
+                        @endphp
+
+                        @foreach($grouped as $category => $changes)
+                        <div class="border-b border-gray-200 px-4 py-4 sm:px-6">
+                            <h3 class="mb-3 text-sm font-semibold text-gray-700">
+                                {{ $categoryLabels[$category] ?? ucfirst($category) }} ({{ count($changes) }})
+                            </h3>
+                            <ul role="list" class="space-y-3">
+                                @foreach($changes as $change)
+                                <li class="flex items-start gap-3">
                                     @if($change['severity'] === 'critical')
                                     <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
                                         CRITICAL
@@ -129,20 +146,31 @@
                                     <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
                                         WARNING
                                     </span>
+                                    @else
+                                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                                        INFO
+                                    </span>
                                     @endif
 
                                     <div class="flex-1">
                                         <p class="text-sm font-medium text-gray-900">{{ $change['message'] }}</p>
-                                        @if(isset($change['endpoint']))
-                                        <p class="mt-1 text-xs text-gray-500">
-                                            Endpoint: <span class="font-mono">{{ $change['method'] ?? '' }} {{ $change['endpoint'] }}</span>
-                                        </p>
-                                        @endif
+                                        <div class="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                                            @if(isset($change['path']))
+                                            <span class="font-mono">{{ $change['method'] ?? '' }} {{ $change['path'] }}</span>
+                                            @endif
+                                            @if(isset($change['parameter']))
+                                            <span>• Parameter: <code class="rounded bg-gray-100 px-1">{{ $change['parameter'] }}</code></span>
+                                            @endif
+                                            @if(isset($change['old_type']) && isset($change['new_type']))
+                                            <span>• Type: <code class="rounded bg-gray-100 px-1">{{ $change['old_type'] }}</code> → <code class="rounded bg-gray-100 px-1">{{ $change['new_type'] }}</code></span>
+                                            @endif
+                                        </div>
                                     </div>
-                                </div>
-                            </li>
-                            @endforeach
-                        </ul>
+                                </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                        @endforeach
                     </div>
                 </div>
                 @endif

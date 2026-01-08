@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contract;
 use App\Models\ContractVersion;
 use App\Models\ValidationReport;
+use App\Services\BreakingChangesDetector;
 use App\Services\ContractParserService;
 use App\Services\ContractValidatorService;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +21,8 @@ class ContractAnalysisController extends Controller
 {
     public function __construct(
         protected ContractParserService $parser,
-        protected ContractValidatorService $validator
+        protected ContractValidatorService $validator,
+        protected BreakingChangesDetector $breakingChangesDetector
     ) {}
 
     /**
@@ -84,8 +86,8 @@ class ContractAnalysisController extends Controller
                 ->first();
 
             if ($previousVersion && $previousVersion->file_path) {
-                // Compare versions and detect breaking changes
-                $breakingChanges = $this->detectBreakingChanges($previousVersion, $version);
+                // Compare versions and detect breaking changes using dedicated service
+                $breakingChanges = $this->breakingChangesDetector->detect($previousVersion, $version);
             }
 
             // Determine status based on issues
@@ -155,50 +157,5 @@ class ContractAnalysisController extends Controller
             ->first();
 
         return view('contract-versions.report', compact('contract', 'version', 'latestReport', 'previousVersion'));
-    }
-
-    /**
-     * Detect breaking changes between two contract versions.
-     */
-    protected function detectBreakingChanges(ContractVersion $oldVersion, ContractVersion $newVersion): array
-    {
-        $breakingChanges = [];
-
-        $oldEndpoints = $oldVersion->endpoints->keyBy('path_method');
-        $newEndpoints = $newVersion->endpoints->keyBy('path_method');
-
-        // Check for removed endpoints
-        foreach ($oldEndpoints as $key => $oldEndpoint) {
-            if (! $newEndpoints->has($key)) {
-                $breakingChanges[] = [
-                    'type' => 'endpoint_removed',
-                    'severity' => 'critical',
-                    'message' => "Endpoint removed: {$oldEndpoint->method} {$oldEndpoint->path}",
-                    'endpoint' => $oldEndpoint->path,
-                    'method' => $oldEndpoint->method,
-                ];
-            }
-        }
-
-        // Check for modified endpoints
-        foreach ($oldEndpoints as $key => $oldEndpoint) {
-            if ($newEndpoints->has($key)) {
-                $newEndpoint = $newEndpoints->get($key);
-
-                // Compare parameters, responses, etc.
-                // This is a simplified check - you'd want more thorough comparison
-                if ($oldEndpoint->parameters !== $newEndpoint->parameters) {
-                    $breakingChanges[] = [
-                        'type' => 'parameters_changed',
-                        'severity' => 'warning',
-                        'message' => "Parameters changed for: {$newEndpoint->method} {$newEndpoint->path}",
-                        'endpoint' => $newEndpoint->path,
-                        'method' => $newEndpoint->method,
-                    ];
-                }
-            }
-        }
-
-        return $breakingChanges;
     }
 }
