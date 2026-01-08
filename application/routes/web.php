@@ -25,6 +25,7 @@ Route::get('contracts/{contract}/versions/create', [ContractVersionController::c
     ->name('contract-versions.create');
 Route::post('contracts/{contract}/versions', [ContractVersionController::class, 'store'])
     ->name('contract-versions.store');
+Route::get('contract-versions/{contractVersion}', [ContractVersionController::class, 'show'])
+    ->name('contract-versions.show');
 Route::get('contract-versions/{contractVersion}/download', [ContractVersionController::class, 'download'])
     ->name('contract-versions.download');
-

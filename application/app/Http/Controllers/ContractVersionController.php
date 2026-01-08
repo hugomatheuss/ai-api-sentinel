@@ -4,13 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Contract;
 use App\Models\ContractVersion;
-use cebe\openapi\Reader;
-use cebe\openapi\exceptions\IOException;
-use cebe\openapi\exceptions\TypeErrorException;
-use cebe\openapi\exceptions\UnresolvableReferenceException;
+use App\Services\ContractParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
  * Controller para gerenciamento de versões de contratos OpenAPI.
@@ -35,7 +31,19 @@ class ContractVersionController extends Controller
     {
         $validated = $request->validate([
             'version' => 'required|string|regex:/^\d+\.\d+\.\d+$/',
-            'file' => 'required|file|mimes:yaml,yml,json|max:2048',
+            'file' => [
+                'required',
+                'file',
+                'max:2048',
+                function ($attribute, $value, $fail) {
+                    $extension = strtolower($value->getClientOriginalExtension());
+                    $allowedExtensions = ['yaml', 'yml', 'json'];
+
+                    if (! in_array($extension, $allowedExtensions)) {
+                        $fail('O arquivo deve ser do tipo: YAML, YML ou JSON.');
+                    }
+                },
+            ],
         ]);
 
         // Verificar se versão já existe
@@ -62,12 +70,17 @@ class ContractVersionController extends Controller
         $checksum = hash_file('sha256', $file->getRealPath());
 
         // Parse e extrair metadata do OpenAPI
+        $parser = new ContractParserService;
+
         try {
-            $metadata = $this->parseOpenApiFile($file->getRealPath(), $file->getClientOriginalExtension());
+            $openapi = $parser->parse($file->getRealPath(), $file->getClientOriginalExtension());
+            $metadata = $parser->extractMetadata($openapi);
+            $endpoints = $parser->extractEndpoints($openapi);
         } catch (\Exception $e) {
             // Se parsing falhar, deletar arquivo e retornar erro
             Storage::delete($path);
-            return back()->withErrors(['file' => 'Erro ao validar arquivo OpenAPI: ' . $e->getMessage()])->withInput();
+
+            return back()->withErrors(['file' => 'Erro ao validar arquivo OpenAPI: '.$e->getMessage()])->withInput();
         }
 
         // Criar ContractVersion
@@ -79,62 +92,23 @@ class ContractVersionController extends Controller
             'metadata' => $metadata,
         ]);
 
+        // Salvar endpoints extraídos
+        foreach ($endpoints as $endpointData) {
+            $version->endpoints()->create($endpointData);
+        }
+
         return redirect()->route('contracts.show', $contract)
-            ->with('success', "Versão {$validated['version']} criada com sucesso!");
+            ->with('success', "Versão {$validated['version']} criada com sucesso! {$metadata['paths_count']} endpoints extraídos.");
     }
 
     /**
-     * Parse OpenAPI file and extract metadata.
+     * Display a contract version and its endpoints.
      */
-    protected function parseOpenApiFile(string $filePath, string $extension): array
+    public function show(ContractVersion $contractVersion)
     {
-        try {
-            if (in_array($extension, ['yaml', 'yml'])) {
-                $openapi = Reader::readFromYamlFile($filePath);
-            } else {
-                $openapi = Reader::readFromJsonFile($filePath);
-            }
+        $contractVersion->load(['contract.api', 'endpoints', 'validationReport']);
 
-            // Validar estrutura básica
-            if (!$openapi->openapi && !$openapi->swagger) {
-                throw new \Exception('Arquivo não contém especificação OpenAPI/Swagger válida');
-            }
-
-            // Extrair metadata relevante
-            return [
-                'openapi' => $openapi->openapi ?? $openapi->swagger ?? null,
-                'title' => $openapi->info->title ?? null,
-                'version' => $openapi->info->version ?? null,
-                'description' => $openapi->info->description ?? null,
-                'servers' => $this->extractServers($openapi),
-                'paths_count' => count((array) $openapi->paths),
-                'components_count' => isset($openapi->components->schemas) ? count((array) $openapi->components->schemas) : 0,
-            ];
-        } catch (IOException | TypeErrorException | UnresolvableReferenceException $e) {
-            throw new \Exception('Formato de arquivo inválido: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Extract server URLs from OpenAPI spec.
-     */
-    protected function extractServers($openapi): array
-    {
-        if (!isset($openapi->servers)) {
-            return [];
-        }
-
-        $servers = [];
-        foreach ($openapi->servers as $server) {
-            if (isset($server->url)) {
-                $servers[] = [
-                    'url' => $server->url,
-                    'description' => $server->description ?? null,
-                ];
-            }
-        }
-
-        return $servers;
+        return view('contract-versions.show', compact('contractVersion'));
     }
 
     /**
@@ -142,7 +116,7 @@ class ContractVersionController extends Controller
      */
     public function download(ContractVersion $contractVersion)
     {
-        if (!Storage::exists($contractVersion->file_path)) {
+        if (! Storage::exists($contractVersion->file_path)) {
             abort(404, 'Arquivo não encontrado');
         }
 
