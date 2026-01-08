@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Contract;
 use App\Models\ContractVersion;
 use App\Models\ValidationReport;
-use Illuminate\Http\Request;
+use App\Services\ContractParserService;
+use App\Services\ContractValidatorService;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Handles analysis and validation of API contracts.
@@ -16,6 +18,11 @@ use Illuminate\Http\Request;
  */
 class ContractAnalysisController extends Controller
 {
+    public function __construct(
+        protected ContractParserService $parser,
+        protected ContractValidatorService $validator
+    ) {}
+
     /**
      * Show the analysis overview page for a contract version.
      */
@@ -43,34 +50,87 @@ class ContractAnalysisController extends Controller
         $issues = [];
         $breakingChanges = [];
 
-        // Basic validation
-        if (!$version->openapi_content) {
-            $issues[] = [
-                'severity' => 'error',
-                'message' => 'No OpenAPI content found',
-                'type' => 'missing_content'
-            ];
+        try {
+            // Check if file exists
+            if (! Storage::exists($version->file_path)) {
+                \Log::error('Contract file not found', [
+                    'version_id' => $version->id,
+                    'file_path' => $version->file_path,
+                    'storage_root' => storage_path('app'),
+                    'full_path' => Storage::path($version->file_path),
+                ]);
+                throw new \Exception('Contract file not found in storage. Path: '.$version->file_path);
+            }
+
+            // Get real path of the stored file
+            $filePath = Storage::path($version->file_path);
+            $extension = pathinfo($version->file_path, PATHINFO_EXTENSION);
+
+            \Log::info('Parsing contract', [
+                'file_path' => $filePath,
+                'extension' => $extension,
+                'file_exists' => file_exists($filePath),
+            ]);
+
+            $openapi = $this->parser->parse($filePath, $extension);
+
+            // Validate contract structure
+            $issues = $this->validator->validate($openapi);
+
+            // Get previous version for comparison
+            $previousVersion = ContractVersion::where('contract_id', $contract->id)
+                ->where('id', '<', $version->id)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            if ($previousVersion && $previousVersion->file_path) {
+                // Compare versions and detect breaking changes
+                $breakingChanges = $this->detectBreakingChanges($previousVersion, $version);
+            }
+
+            // Determine status based on issues
+            $status = $this->validator->determineStatus($issues);
+
+            // If there are breaking changes, mark as failed
+            if (! empty($breakingChanges)) {
+                $criticalChanges = array_filter($breakingChanges, fn ($change) => $change['severity'] === 'critical');
+                if (! empty($criticalChanges)) {
+                    $status = 'failed';
+                }
+            }
+
+            $counts = $this->validator->countBySeverity($issues);
+
+            // Create validation report
+            $report = ValidationReport::create([
+                'contract_version_id' => $version->id,
+                'status' => $status,
+                'issues' => $issues,
+                'breaking_changes' => $breakingChanges,
+                'error_count' => $counts['error'],
+                'warning_count' => $counts['warning'],
+                'processed_at' => now(),
+            ]);
+
+        } catch (\Exception $e) {
+            // Handle parsing errors
+            $report = ValidationReport::create([
+                'contract_version_id' => $version->id,
+                'status' => 'failed',
+                'issues' => [
+                    [
+                        'severity' => 'error',
+                        'type' => 'parse_error',
+                        'message' => 'Failed to parse OpenAPI contract: '.$e->getMessage(),
+                        'path' => 'root',
+                    ],
+                ],
+                'breaking_changes' => [],
+                'error_count' => 1,
+                'warning_count' => 0,
+                'processed_at' => now(),
+            ]);
         }
-
-        // Get previous version for comparison
-        $previousVersion = ContractVersion::where('contract_id', $contract->id)
-            ->where('id', '<', $version->id)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($previousVersion) {
-            // Compare versions and detect breaking changes
-            $breakingChanges = $this->detectBreakingChanges($previousVersion, $version);
-        }
-
-        // Create validation report
-        $report = ValidationReport::create([
-            'contract_version_id' => $version->id,
-            'status' => empty($issues) && empty($breakingChanges) ? 'passed' : 'failed',
-            'issues' => $issues,
-            'breaking_changes' => $breakingChanges,
-            'processed_at' => now(),
-        ]);
 
         return redirect()
             ->route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id])
@@ -109,7 +169,7 @@ class ContractAnalysisController extends Controller
 
         // Check for removed endpoints
         foreach ($oldEndpoints as $key => $oldEndpoint) {
-            if (!$newEndpoints->has($key)) {
+            if (! $newEndpoints->has($key)) {
                 $breakingChanges[] = [
                     'type' => 'endpoint_removed',
                     'severity' => 'critical',

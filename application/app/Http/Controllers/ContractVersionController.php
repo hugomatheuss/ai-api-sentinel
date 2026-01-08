@@ -60,11 +60,37 @@ class ContractVersionController extends Controller
             $file->getClientOriginalExtension()
         );
 
+        // Garantir que o diretório existe
+        $directory = "contracts/{$contract->api_id}/{$contract->id}";
+        Storage::makeDirectory($directory);
+
+        \Log::info('Uploading contract version', [
+            'directory' => $directory,
+            'filename' => $filename,
+            'storage_root' => storage_path('app'),
+        ]);
+
         // Salvar arquivo em storage
-        $path = $file->storeAs(
-            "contracts/{$contract->api_id}/{$contract->id}",
+        $path = Storage::putFileAs(
+            $directory,
+            $file,
             $filename
         );
+
+        if (! $path) {
+            \Log::error('Failed to save file to storage');
+
+            return back()->withErrors(['file' => 'Erro ao salvar arquivo no storage.'])->withInput();
+        }
+
+        \Log::info('File saved successfully', ['path' => $path]);
+
+        // Verificar se arquivo foi realmente salvo
+        if (! Storage::exists($path)) {
+            \Log::error('File does not exist after save', ['path' => $path]);
+
+            return back()->withErrors(['file' => 'Arquivo não foi salvo corretamente.'])->withInput();
+        }
 
         // Calcular checksum
         $checksum = hash_file('sha256', $file->getRealPath());
