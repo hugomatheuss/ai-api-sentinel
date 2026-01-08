@@ -23,7 +23,7 @@ class ContractVersionFactory extends Factory
         return [
             'contract_id' => Contract::factory(),
             'version' => fake()->numerify('#.#.#'), // SemVer format
-            'file_path' => 'contracts/' . fake()->uuid() . '.yaml',
+            'file_path' => 'contracts/'.fake()->uuid().'.yaml',
             'checksum' => hash('sha256', fake()->text(500)),
             'status' => fake()->randomElement(['pending', 'validated', 'failed']),
             'metadata' => [

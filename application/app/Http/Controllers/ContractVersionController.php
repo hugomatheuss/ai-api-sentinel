@@ -106,7 +106,7 @@ class ContractVersionController extends Controller
      */
     public function show(ContractVersion $contractVersion)
     {
-        $contractVersion->load(['contract.api', 'endpoints', 'validationReport']);
+        $contractVersion->load(['contract.api', 'endpoints', 'validationReports']);
 
         return view('contract-versions.show', compact('contractVersion'));
     }

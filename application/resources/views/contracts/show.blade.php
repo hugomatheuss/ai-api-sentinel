@@ -121,9 +121,11 @@
                                         {{ $version->created_at->format('d/m/Y H:i') }}
                                     </td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-2">
+                                        <a href="{{ route('contract-versions.show', $version) }}" class="text-indigo-600 hover:text-indigo-900">Visualizar</a>
+                                        <a href="{{ route('contracts.versions.analyze', ['contract' => $contract->id, 'version' => $version->id]) }}" class="text-purple-600 hover:text-purple-900">Analisar</a>
                                         <a href="{{ route('contract-versions.download', $version) }}" class="text-indigo-600 hover:text-indigo-900">Download</a>
-                                        @if ($version->validationReport)
-                                            <a href="#" class="text-indigo-600 hover:text-indigo-900">Ver relatório</a>
+                                        @if ($version->validationReports()->exists())
+                                            <a href="{{ route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]) }}" class="text-green-600 hover:text-green-900">Relatório</a>
                                         @endif
                                     </td>
                                 </tr>

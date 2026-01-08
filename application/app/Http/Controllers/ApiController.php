@@ -54,7 +54,7 @@ class ApiController extends Controller
      */
     public function show(Api $api)
     {
-        $api->load(['contracts.versions.validationReport']);
+        $api->load(['contracts.versions.validationReports']);
 
         return view('apis.show', compact('api'));
     }

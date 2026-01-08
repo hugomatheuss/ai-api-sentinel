@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Api;
 use App\Models\Contract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
