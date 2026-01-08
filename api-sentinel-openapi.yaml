@@ -1,0 +1,381 @@
+openapi: 3.0.0
+info:
+  title: API Sentinel - Contract Validation API
+  description: |
+    REST API for validating OpenAPI contracts and detecting breaking changes.
+    Designed for integration with CI/CD pipelines.
+    
+    ## Features
+    - Validate OpenAPI 3.x contracts
+    - Detect breaking changes between versions
+    - Get validation status programmatically
+    - Integrate with GitHub Actions, GitLab CI, Jenkins, etc.
+    
+    ## Authentication
+    Currently no authentication required (add API keys in production).
+    
+  version: 1.0.0
+  contact:
+    name: API Sentinel
+    url: https://github.com/hugomatheuss/ai-api-sentinel
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api-sentinel.example.com/api/v1
+    description: Production
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is running
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: API Sentinel
+                  version:
+                    type: string
+                    example: 1.0.0
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /validate:
+    post:
+      summary: Validate OpenAPI contract
+      description: |
+        Upload and validate an OpenAPI contract file.
+        Returns validation results including errors, warnings, and extracted endpoints.
+      operationId: validateContract
+      tags:
+        - Validation
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: OpenAPI contract file (YAML or JSON)
+                contract_id:
+                  type: integer
+                  description: Optional contract ID for context
+      responses:
+        '200':
+          description: Validation successful (may have warnings)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '422':
+          description: Validation failed with errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '400':
+          description: Invalid request or parsing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /compare:
+    post:
+      summary: Compare contract versions
+      description: |
+        Compare two contract versions to detect breaking changes.
+        Returns critical, warning, and info level changes grouped by category.
+      operationId: compareVersions
+      tags:
+        - Comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_version_id
+                - new_version_id
+              properties:
+                old_version_id:
+                  type: integer
+                  description: ID of the old contract version
+                new_version_id:
+                  type: integer
+                  description: ID of the new contract version
+      responses:
+        '200':
+          description: Comparison successful, no blocking changes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResult'
+        '422':
+          description: Critical breaking changes detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /contracts/{contractId}/versions/{versionId}/status:
+    get:
+      summary: Get validation status
+      description: Retrieve the validation status and report for a specific contract version
+      operationId: getValidationStatus
+      tags:
+        - Status
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Contract ID
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Version ID
+      responses:
+        '200':
+          description: Status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResult'
+        '404':
+          description: Contract/version not found or no validation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ValidationResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+          enum: [passed, warning, failed]
+        metadata:
+          type: object
+          properties:
+            openapi:
+              type: string
+            title:
+              type: string
+            version:
+              type: string
+            description:
+              type: string
+        validation:
+          type: object
+          properties:
+            status:
+              type: string
+            error_count:
+              type: integer
+            warning_count:
+              type: integer
+            info_count:
+              type: integer
+            issues:
+              type: array
+              items:
+                $ref: '#/components/schemas/Issue'
+        endpoints:
+          type: object
+          properties:
+            count:
+              type: integer
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/Endpoint'
+
+    ComparisonResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        comparison:
+          type: object
+          properties:
+            old_version:
+              type: string
+            new_version:
+              type: string
+            has_breaking_changes:
+              type: boolean
+            has_blocking_changes:
+              type: boolean
+        breaking_changes:
+          type: object
+          properties:
+            total:
+              type: integer
+            critical:
+              type: integer
+            warning:
+              type: integer
+            info:
+              type: integer
+            by_category:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BreakingChange'
+            all:
+              type: array
+              items:
+                $ref: '#/components/schemas/BreakingChange'
+        recommendation:
+          type: string
+          example: "BLOCK: Critical breaking changes detected"
+
+    StatusResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        contract:
+          type: object
+          properties:
+            id:
+              type: integer
+            title:
+              type: string
+        version:
+          type: object
+          properties:
+            id:
+              type: integer
+            version:
+              type: string
+            status:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+        validation:
+          type: object
+          properties:
+            status:
+              type: string
+            error_count:
+              type: integer
+            warning_count:
+              type: integer
+            issues:
+              type: array
+              items:
+                $ref: '#/components/schemas/Issue'
+            breaking_changes:
+              type: array
+              items:
+                $ref: '#/components/schemas/BreakingChange'
+            processed_at:
+              type: string
+              format: date-time
+
+    Issue:
+      type: object
+      properties:
+        severity:
+          type: string
+          enum: [error, warning, info]
+        type:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+
+    BreakingChange:
+      type: object
+      properties:
+        type:
+          type: string
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        message:
+          type: string
+        path:
+          type: string
+        method:
+          type: string
+        category:
+          type: string
+
+    Endpoint:
+      type: object
+      properties:
+        path:
+          type: string
+        method:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        parameters:
+          type: array
+        responses:
+          type: object
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+
+tags:
+  - name: System
+    description: System health and status
+  - name: Validation
+    description: Contract validation operations
+  - name: Comparison
+    description: Version comparison and breaking changes
+  - name: Status
+    description: Get validation status
+
