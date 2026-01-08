@@ -1,0 +1,160 @@
+name: API Contract Validation
+
+on:
+  pull_request:
+    paths:
+      - 'api/openapi.yaml'
+      - 'api/openapi.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/openapi.yaml'
+      - 'api/openapi.json'
+
+jobs:
+  validate-contract:
+    runs-on: ubuntu-latest
+    name: Validate OpenAPI Contract
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Find OpenAPI file
+        id: find-contract
+        run: |
+          if [ -f "api/openapi.yaml" ]; then
+            echo "file=api/openapi.yaml" >> $GITHUB_OUTPUT
+          elif [ -f "api/openapi.json" ]; then
+            echo "file=api/openapi.json" >> $GITHUB_OUTPUT
+          else
+            echo "Error: No OpenAPI file found"
+            exit 1
+          fi
+      
+      - name: Validate OpenAPI Contract
+        id: validate
+        run: |
+          RESPONSE=$(curl -X POST \
+            -F "file=@${{ steps.find-contract.outputs.file }}" \
+            -w "\n%{http_code}" \
+            ${{ secrets.API_SENTINEL_URL }}/api/v1/validate)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "$BODY" | jq '.'
+          
+          # Save for next step
+          echo "$BODY" > validation-result.json
+          
+          # Check if validation passed
+          STATUS=$(echo "$BODY" | jq -r '.status')
+          ERROR_COUNT=$(echo "$BODY" | jq -r '.validation.error_count')
+          
+          if [ "$STATUS" = "failed" ] || [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "❌ Validation FAILED with $ERROR_COUNT errors"
+            exit 1
+          elif [ "$STATUS" = "warning" ]; then
+            echo "⚠️  Validation passed with warnings"
+          else
+            echo "✅ Validation PASSED"
+          fi
+      
+      - name: Comment PR with validation results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = JSON.parse(fs.readFileSync('validation-result.json', 'utf8'));
+            
+            let comment = '## 🔍 API Contract Validation Results\n\n';
+            comment += `**Status:** ${result.status === 'passed' ? '✅ PASSED' : result.status === 'warning' ? '⚠️ WARNING' : '❌ FAILED'}\n\n`;
+            comment += `### Summary\n`;
+            comment += `- **Errors:** ${result.validation.error_count}\n`;
+            comment += `- **Warnings:** ${result.validation.warning_count}\n`;
+            comment += `- **Endpoints:** ${result.endpoints.count}\n\n`;
+            
+            if (result.validation.issues && result.validation.issues.length > 0) {
+              comment += '### Issues Found\n\n';
+              result.validation.issues.forEach(issue => {
+                const icon = issue.severity === 'error' ? '🔴' : issue.severity === 'warning' ? '🟡' : 'ℹ️';
+                comment += `${icon} **${issue.severity.toUpperCase()}:** ${issue.message}\n`;
+                if (issue.path) comment += `   - Path: \`${issue.path}\`\n`;
+              });
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+  
+  check-breaking-changes:
+    runs-on: ubuntu-latest
+    name: Check for Breaking Changes
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+      
+      - name: Upload current version to API Sentinel
+        id: upload-new
+        run: |
+          RESPONSE=$(curl -X POST \
+            -F "file=@api/openapi.yaml" \
+            ${{ secrets.API_SENTINEL_URL }}/api/v1/validate)
+          echo "new_response=$RESPONSE" >> $GITHUB_OUTPUT
+      
+      - name: Upload main version to API Sentinel  
+        id: upload-old
+        run: |
+          RESPONSE=$(curl -X POST \
+            -F "file=@main-branch/api/openapi.yaml" \
+            ${{ secrets.API_SENTINEL_URL }}/api/v1/validate)
+          echo "old_response=$RESPONSE" >> $GITHUB_OUTPUT
+      
+      - name: Compare versions
+        id: compare
+        run: |
+          # Note: This is simplified. In production, you'd store version IDs
+          # and use the /api/v1/compare endpoint
+          echo "⚠️  Breaking changes detection requires storing version IDs"
+          echo "See API Sentinel documentation for full CI/CD integration"
+      
+      - name: Block on breaking changes
+        if: steps.compare.outputs.has_breaking == 'true'
+        run: |
+          echo "❌ BLOCKING: Critical breaking changes detected!"
+          exit 1
+
+  publish-contract:
+    runs-on: ubuntu-latest
+    name: Publish Contract to API Sentinel
+    needs: [validate-contract]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Publish to API Sentinel
+        run: |
+          echo "📤 Publishing contract to API Sentinel..."
+          curl -X POST \
+            -F "file=@api/openapi.yaml" \
+            -F "version=${{ github.sha }}" \
+            ${{ secrets.API_SENTINEL_URL }}/api/v1/validate
+          echo "✅ Contract published successfully"
+

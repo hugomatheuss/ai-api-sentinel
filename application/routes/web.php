@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ContractAnalysisController;
 use App\Http\Controllers\ContractController;
+use App\Http\Controllers\ContractDiffController;
 use App\Http\Controllers\ContractVersionController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
@@ -36,3 +37,7 @@ Route::post('/contracts/{contract}/versions/{version}/process', [ContractAnalysi
     ->name('contracts.versions.process');
 Route::get('/contracts/{contract}/versions/{version}/report', [ContractAnalysisController::class, 'report'])
     ->name('contracts.versions.report');
+
+// Diff comparison
+Route::get('/contracts/{contract}/diff/{oldVersion}/{newVersion}', [ContractDiffController::class, 'compare'])
+    ->name('contracts.diff');
