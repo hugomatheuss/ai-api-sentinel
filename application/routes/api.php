@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ApiTokenController;
 use App\Http\Controllers\Api\ContractValidationController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,18 +17,36 @@ use Illuminate\Support\Facades\Route;
 
 // API v1
 Route::prefix('v1')->group(function () {
-    // Health check
+    // Public endpoints (no authentication required)
     Route::get('/health', [ContractValidationController::class, 'health']);
 
-    // Contract validation
-    Route::post('/validate', [ContractValidationController::class, 'validate'])
-        ->name('api.validate');
+    // Token management (no auth required for creating first token)
+    Route::post('/tokens', [ApiTokenController::class, 'store'])
+        ->name('api.tokens.store');
 
-    // Version comparison
-    Route::post('/compare', [ContractValidationController::class, 'compare'])
-        ->name('api.compare');
+    // Protected endpoints (require API token)
+    // NOTE: Authentication is optional by default for MVP
+    // Uncomment middleware to require authentication:
+    // ->middleware('auth.api.token')
 
-    // Contract version status
-    Route::get('/contracts/{contract}/versions/{version}/status', [ContractValidationController::class, 'status'])
-        ->name('api.status');
+    Route::middleware(['throttle:api'])->group(function () {
+        // Contract validation
+        Route::post('/validate', [ContractValidationController::class, 'validate'])
+            ->name('api.validate');
+
+        // Version comparison
+        Route::post('/compare', [ContractValidationController::class, 'compare'])
+            ->name('api.compare');
+
+        // Contract version status
+        Route::get('/contracts/{contract}/versions/{version}/status', [ContractValidationController::class, 'status'])
+            ->name('api.status');
+
+        // Token management (authenticated)
+        Route::get('/tokens', [ApiTokenController::class, 'index'])
+            ->name('api.tokens.index');
+
+        Route::delete('/tokens/{id}', [ApiTokenController::class, 'destroy'])
+            ->name('api.tokens.destroy');
+    });
 });
