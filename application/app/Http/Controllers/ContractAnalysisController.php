@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contract;
 use App\Models\ContractVersion;
 use App\Models\ValidationReport;
+use App\Services\AIAnalysisService;
 use App\Services\BreakingChangesDetector;
 use App\Services\ContractParserService;
 use App\Services\ContractValidatorService;
@@ -22,7 +23,8 @@ class ContractAnalysisController extends Controller
     public function __construct(
         protected ContractParserService $parser,
         protected ContractValidatorService $validator,
-        protected BreakingChangesDetector $breakingChangesDetector
+        protected BreakingChangesDetector $breakingChangesDetector,
+        protected AIAnalysisService $aiAnalysis
     ) {}
 
     /**
@@ -78,6 +80,13 @@ class ContractAnalysisController extends Controller
 
             // Validate contract structure
             $issues = $this->validator->validate($openapi);
+
+            // AI-powered analysis
+            $aiInsights = $this->aiAnalysis->analyzeNaming($version);
+            $qualityScore = $this->aiAnalysis->calculateQualityScore($version);
+
+            // Merge AI insights with validation issues
+            $issues = array_merge($issues, $aiInsights);
 
             // Get previous version for comparison
             $previousVersion = ContractVersion::where('contract_id', $contract->id)
