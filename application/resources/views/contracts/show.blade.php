@@ -91,6 +91,9 @@
                                         @if ($version->metadata && isset($version->metadata['openapi']))
                                             <p class="text-xs text-gray-500">OpenAPI {{ $version->metadata['openapi'] }}</p>
                                         @endif
+                                        @if ($version->endpoints_count > 0)
+                                            <p class="text-xs text-gray-500">{{ $version->endpoints_count }} endpoints</p>
+                                        @endif
                                     </td>
                                     <td class="whitespace-nowrap px-3 py-4 text-sm">
                                         @if ($version->status === 'validated')
