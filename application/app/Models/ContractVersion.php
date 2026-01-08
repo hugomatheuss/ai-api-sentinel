@@ -45,4 +45,12 @@ class ContractVersion extends Model
     {
         return $this->hasOne(ValidationReport::class);
     }
+
+    /**
+     * Endpoints extraídos desta versão do contrato
+     */
+    public function endpoints()
+    {
+        return $this->hasMany(Endpoint::class);
+    }
 }
