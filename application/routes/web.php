@@ -4,11 +4,11 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ContractAnalysisController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractVersionController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Dashboard
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 // Health endpoint para monitoring
 Route::get('/health', function () {
