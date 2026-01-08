@@ -9,6 +9,7 @@ use App\Services\AIAnalysisService;
 use App\Services\BreakingChangesDetector;
 use App\Services\ContractParserService;
 use App\Services\ContractValidatorService;
+use App\Services\WebhookService;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -24,7 +25,8 @@ class ContractAnalysisController extends Controller
         protected ContractParserService $parser,
         protected ContractValidatorService $validator,
         protected BreakingChangesDetector $breakingChangesDetector,
-        protected AIAnalysisService $aiAnalysis
+        protected AIAnalysisService $aiAnalysis,
+        protected WebhookService $webhookService
     ) {}
 
     /**
@@ -123,6 +125,9 @@ class ContractAnalysisController extends Controller
                 'processed_at' => now(),
             ]);
 
+            // Dispatch webhooks
+            $this->dispatchWebhooks($contract, $version, $report, $breakingChanges);
+
         } catch (\Exception $e) {
             // Handle parsing errors
             $report = ValidationReport::create([
@@ -166,5 +171,48 @@ class ContractAnalysisController extends Controller
             ->first();
 
         return view('contract-versions.report', compact('contract', 'version', 'latestReport', 'previousVersion'));
+    }
+
+    /**
+     * Dispatch webhooks for validation events
+     */
+    protected function dispatchWebhooks(Contract $contract, ContractVersion $version, ValidationReport $report, array $breakingChanges): void
+    {
+        // Dispatch appropriate event based on validation result
+        if ($report->status === 'failed') {
+            $this->webhookService->dispatch('contract.failed', [
+                'contract_id' => $contract->id,
+                'contract_title' => $contract->title,
+                'version' => $version->version,
+                'error_count' => $report->error_count,
+                'warning_count' => $report->warning_count,
+                'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
+            ]);
+        } else {
+            $this->webhookService->dispatch('contract.validated', [
+                'contract_id' => $contract->id,
+                'contract_title' => $contract->title,
+                'version' => $version->version,
+                'status' => $report->status,
+                'error_count' => $report->error_count,
+                'warning_count' => $report->warning_count,
+                'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
+            ]);
+        }
+
+        // Dispatch breaking changes event if detected
+        if (! empty($breakingChanges)) {
+            $criticalCount = collect($breakingChanges)->where('severity', 'critical')->count();
+
+            $this->webhookService->dispatch('breaking_changes.detected', [
+                'contract_id' => $contract->id,
+                'contract_title' => $contract->title,
+                'version' => $version->version,
+                'total_changes' => count($breakingChanges),
+                'critical_changes' => $criticalCount,
+                'changes' => $breakingChanges,
+                'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
+            ]);
+        }
     }
 }

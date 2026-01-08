@@ -16,13 +16,19 @@ O objetivo do projeto é apoiar a evolução controlada de APIs em ambientes dis
 
 ## 🧩 Escopo Inicial (MVP)
 
-- Cadastro e catalogação de APIs
-- Importação de contratos OpenAPI (YAML/JSON)
-- Versionamento de contratos
-- Diff estrutural entre versões
-- Identificação de breaking changes
-- Relatório de validação de contrato
-- Integração básica com pipeline CI (GitHub Actions)
+**✅ Implementado:**
+- ✅ Cadastro e catalogação de APIs
+- ✅ Importação de contratos OpenAPI (YAML/JSON)
+- ✅ Versionamento de contratos
+- ✅ Diff estrutural entre versões
+- ✅ Identificação de breaking changes (10+ cenários)
+- ✅ Relatório de validação de contrato
+- ✅ Dashboard de governança com métricas
+- ✅ Comparação visual entre versões
+- ✅ API REST para automação
+- ✅ Autenticação com API tokens
+- ✅ Webhooks para notificações
+- ✅ Integração com CI/CD (GitHub Actions, GitLab, Jenkins)
 
 ## 🧠 Uso de Inteligência Artificial
 

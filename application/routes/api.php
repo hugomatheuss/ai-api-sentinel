@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ApiTokenController;
 use App\Http\Controllers\Api\ContractValidationController;
+use App\Http\Controllers\Api\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -48,5 +49,24 @@ Route::prefix('v1')->group(function () {
 
         Route::delete('/tokens/{id}', [ApiTokenController::class, 'destroy'])
             ->name('api.tokens.destroy');
+
+        // Webhook management
+        Route::get('/webhooks', [WebhookController::class, 'index'])
+            ->name('api.webhooks.index');
+
+        Route::post('/webhooks', [WebhookController::class, 'store'])
+            ->name('api.webhooks.store');
+
+        Route::get('/webhooks/{id}', [WebhookController::class, 'show'])
+            ->name('api.webhooks.show');
+
+        Route::patch('/webhooks/{id}', [WebhookController::class, 'update'])
+            ->name('api.webhooks.update');
+
+        Route::delete('/webhooks/{id}', [WebhookController::class, 'destroy'])
+            ->name('api.webhooks.destroy');
+
+        Route::post('/webhooks/{id}/test', [WebhookController::class, 'test'])
+            ->name('api.webhooks.test');
     });
 });
