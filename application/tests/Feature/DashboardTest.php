@@ -57,4 +57,3 @@ test('dashboard shows health score', function () {
         ->assertOk()
         ->assertSee('Health Score');
 });
-

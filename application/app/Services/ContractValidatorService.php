@@ -44,7 +44,7 @@ class ContractValidatorService
     {
         $issues = [];
 
-        if (!isset($openapi->openapi) && !isset($openapi->swagger)) {
+        if (! isset($openapi->openapi) && ! isset($openapi->swagger)) {
             $issues[] = [
                 'severity' => 'error',
                 'type' => 'missing_version',
@@ -63,17 +63,18 @@ class ContractValidatorService
     {
         $issues = [];
 
-        if (!isset($openapi->info)) {
+        if (! isset($openapi->info)) {
             $issues[] = [
                 'severity' => 'error',
                 'type' => 'missing_info',
                 'message' => 'Info section is required',
                 'path' => 'info',
             ];
+
             return $issues;
         }
 
-        if (!isset($openapi->info->title) || empty($openapi->info->title)) {
+        if (! isset($openapi->info->title) || empty($openapi->info->title)) {
             $issues[] = [
                 'severity' => 'error',
                 'type' => 'missing_title',
@@ -82,7 +83,7 @@ class ContractValidatorService
             ];
         }
 
-        if (!isset($openapi->info->version) || empty($openapi->info->version)) {
+        if (! isset($openapi->info->version) || empty($openapi->info->version)) {
             $issues[] = [
                 'severity' => 'error',
                 'type' => 'missing_version',
@@ -91,7 +92,7 @@ class ContractValidatorService
             ];
         }
 
-        if (!isset($openapi->info->description) || empty($openapi->info->description)) {
+        if (! isset($openapi->info->description) || empty($openapi->info->description)) {
             $issues[] = [
                 'severity' => 'warning',
                 'type' => 'missing_description',
@@ -110,13 +111,14 @@ class ContractValidatorService
     {
         $issues = [];
 
-        if (!isset($openapi->paths) || empty((array) $openapi->paths)) {
+        if (! isset($openapi->paths) || empty((array) $openapi->paths)) {
             $issues[] = [
                 'severity' => 'warning',
                 'type' => 'no_paths',
                 'message' => 'No paths/endpoints defined in the API',
                 'path' => 'paths',
             ];
+
             return $issues;
         }
 
@@ -124,14 +126,14 @@ class ContractValidatorService
             $httpMethods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'];
 
             foreach ($httpMethods as $method) {
-                if (!isset($pathItem->$method)) {
+                if (! isset($pathItem->$method)) {
                     continue;
                 }
 
                 $operation = $pathItem->$method;
 
                 // Validar operationId único
-                if (!isset($operation->operationId)) {
+                if (! isset($operation->operationId)) {
                     $issues[] = [
                         'severity' => 'warning',
                         'type' => 'missing_operation_id',
@@ -141,7 +143,7 @@ class ContractValidatorService
                 }
 
                 // Validar summary
-                if (!isset($operation->summary) || empty($operation->summary)) {
+                if (! isset($operation->summary) || empty($operation->summary)) {
                     $issues[] = [
                         'severity' => 'warning',
                         'type' => 'missing_summary',
@@ -151,7 +153,7 @@ class ContractValidatorService
                 }
 
                 // Validar responses
-                if (!isset($operation->responses) || empty($operation->responses)) {
+                if (! isset($operation->responses) || empty($operation->responses)) {
                     $issues[] = [
                         'severity' => 'error',
                         'type' => 'missing_responses',
@@ -170,7 +172,7 @@ class ContractValidatorService
                         }
                     }
 
-                    if (!$hasSuccessResponse) {
+                    if (! $hasSuccessResponse) {
                         $issues[] = [
                             'severity' => 'warning',
                             'type' => 'no_success_response',
@@ -183,7 +185,7 @@ class ContractValidatorService
                 // Validar parâmetros obrigatórios
                 if (isset($operation->parameters)) {
                     foreach ($operation->parameters as $param) {
-                        if (isset($param->required) && $param->required && !isset($param->schema)) {
+                        if (isset($param->required) && $param->required && ! isset($param->schema)) {
                             $issues[] = [
                                 'severity' => 'error',
                                 'type' => 'parameter_missing_schema',
@@ -206,14 +208,14 @@ class ContractValidatorService
     {
         $issues = [];
 
-        if (!isset($openapi->components)) {
+        if (! isset($openapi->components)) {
             return $issues;
         }
 
         // Validar schemas
         if (isset($openapi->components->schemas)) {
             foreach ($openapi->components->schemas as $schemaName => $schema) {
-                if (!isset($schema->type) && !isset($schema->allOf) && !isset($schema->oneOf) && !isset($schema->anyOf)) {
+                if (! isset($schema->type) && ! isset($schema->allOf) && ! isset($schema->oneOf) && ! isset($schema->anyOf)) {
                     $issues[] = [
                         'severity' => 'warning',
                         'type' => 'schema_missing_type',
@@ -235,7 +237,7 @@ class ContractValidatorService
         $issues = [];
 
         // Recomendar servers section
-        if (!isset($openapi->servers) || empty($openapi->servers)) {
+        if (! isset($openapi->servers) || empty($openapi->servers)) {
             $issues[] = [
                 'severity' => 'info',
                 'type' => 'no_servers',
@@ -245,7 +247,7 @@ class ContractValidatorService
         }
 
         // Verificar se há tags
-        if (!isset($openapi->tags) || empty($openapi->tags)) {
+        if (! isset($openapi->tags) || empty($openapi->tags)) {
             $issues[] = [
                 'severity' => 'info',
                 'type' => 'no_tags',
@@ -257,7 +259,7 @@ class ContractValidatorService
         // Verificar versionamento semântico
         if (isset($openapi->info->version)) {
             $version = $openapi->info->version;
-            if (!preg_match('/^\d+\.\d+\.\d+/', $version)) {
+            if (! preg_match('/^\d+\.\d+\.\d+/', $version)) {
                 $issues[] = [
                     'severity' => 'info',
                     'type' => 'non_semver_version',
@@ -309,4 +311,3 @@ class ContractValidatorService
         return 'passed';
     }
 }
-
