@@ -22,13 +22,19 @@ class ValidationReport extends Model
         'report_json',
         'error_count',
         'warning_count',
+        'issues',
+        'breaking_changes',
+        'processed_at',
     ];
 
     protected $casts = [
         'report_json' => 'array',
+        'issues' => 'array',
+        'breaking_changes' => 'array',
         'status' => 'string',
         'error_count' => 'integer',
         'warning_count' => 'integer',
+        'processed_at' => 'datetime',
     ];
 
     /**

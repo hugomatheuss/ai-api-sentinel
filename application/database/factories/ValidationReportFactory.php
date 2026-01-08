@@ -22,7 +22,7 @@ class ValidationReportFactory extends Factory
     {
         $errorCount = fake()->numberBetween(0, 10);
         $warningCount = fake()->numberBetween(0, 15);
-        $status = $errorCount > 0 ? 'fail' : ($warningCount > 0 ? 'warning' : 'pass');
+        $status = $errorCount > 0 ? 'failed' : ($warningCount > 0 ? 'warning' : 'passed');
 
         return [
             'contract_version_id' => ContractVersion::factory(),
@@ -34,6 +34,9 @@ class ValidationReportFactory extends Factory
                 'warnings' => $this->generateIssues($warningCount, 'warning'),
                 'summary' => "Validation completed with {$errorCount} errors and {$warningCount} warnings",
             ],
+            'issues' => $this->generateIssues($errorCount, 'error'),
+            'breaking_changes' => [],
+            'processed_at' => fake()->dateTimeBetween('-30 days', 'now'),
         ];
     }
 
@@ -47,13 +50,14 @@ class ValidationReportFactory extends Factory
                 'message' => fake()->sentence(8),
             ];
         }
+
         return $issues;
     }
 
     public function pass(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'pass',
+            'status' => 'passed',
             'error_count' => 0,
             'warning_count' => 0,
             'report_json' => [
@@ -61,13 +65,15 @@ class ValidationReportFactory extends Factory
                 'warnings' => [],
                 'summary' => 'Validation passed successfully',
             ],
+            'issues' => [],
+            'breaking_changes' => [],
         ]);
     }
 
     public function fail(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'fail',
+            'status' => 'failed',
             'error_count' => fake()->numberBetween(1, 10),
         ]);
     }

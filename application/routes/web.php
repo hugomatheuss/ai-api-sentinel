@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\ContractAnalysisController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractVersionController;
 use Illuminate\Support\Facades\Route;
@@ -29,3 +30,9 @@ Route::get('contract-versions/{contractVersion}', [ContractVersionController::cl
     ->name('contract-versions.show');
 Route::get('contract-versions/{contractVersion}/download', [ContractVersionController::class, 'download'])
     ->name('contract-versions.download');
+Route::get('/contracts/{contract}/versions/{version}/analyze', [ContractAnalysisController::class, 'show'])
+    ->name('contracts.versions.analyze');
+Route::post('/contracts/{contract}/versions/{version}/process', [ContractAnalysisController::class, 'process'])
+    ->name('contracts.versions.process');
+Route::get('/contracts/{contract}/versions/{version}/report', [ContractAnalysisController::class, 'report'])
+    ->name('contracts.versions.report');

@@ -53,7 +53,7 @@ class ContractController extends Controller
      */
     public function show(Contract $contract)
     {
-        $contract->load(['api', 'versions.validationReport']);
+        $contract->load(['api', 'versions.validationReports']);
         $contract->loadCount(['versions' => function ($query) {
             $query->withCount('endpoints');
         }]);

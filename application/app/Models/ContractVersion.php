@@ -39,11 +39,11 @@ class ContractVersion extends Model
     }
 
     /**
-     * Relatório de validação associado
+     * Todos os relatórios de validação desta versão
      */
-    public function validationReport()
+    public function validationReports()
     {
-        return $this->hasOne(ValidationReport::class);
+        return $this->hasMany(ValidationReport::class);
     }
 
     /**

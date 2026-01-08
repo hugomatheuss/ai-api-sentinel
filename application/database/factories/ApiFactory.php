@@ -20,7 +20,7 @@ class ApiFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->words(3, true) . ' API',
+            'name' => fake()->words(3, true).' API',
             'description' => fake()->sentence(12),
             'base_url' => fake()->url(),
             'owner' => fake()->name(),
