@@ -55,7 +55,9 @@ Metrics and analytics dashboard
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Validation Trends ({{ $days }} days)</h3>
-            <canvas id="validationTrendsChart" height="100"></canvas>
+            <div class="relative" style="max-height: 280px;">
+                <canvas id="validationTrendsChart" height="80"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -65,7 +67,9 @@ Metrics and analytics dashboard
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Activity by Type</h3>
-            <canvas id="activityChart" height="250"></canvas>
+            <div class="relative" style="max-height: 280px;">
+                <canvas id="activityChart" height="80"></canvas>
+            </div>
         </div>
     </div>
 
@@ -73,7 +77,9 @@ Metrics and analytics dashboard
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Top 10 Common Issues</h3>
-            <canvas id="commonIssuesChart" height="250"></canvas>
+            <div class="relative" style="max-height: 280px;">
+                <canvas id="commonIssuesChart" height="80"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -108,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 interaction: {
                     mode: 'index',
                     intersect: false,
@@ -171,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 plugins: {
                     legend: {
                         position: 'bottom',
@@ -201,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 indexAxis: 'y',
                 plugins: {
                     legend: {
