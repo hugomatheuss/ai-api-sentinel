@@ -211,7 +211,7 @@ YAML;
     $report = $this->action->handle($contract, $newVersion);
 
     // If critical breaking changes detected, status should be failed
-    if (!empty($report->breaking_changes)) {
+    if (! empty($report->breaking_changes)) {
         $hasCritical = collect($report->breaking_changes)
             ->contains('severity', 'critical');
 
@@ -269,4 +269,3 @@ test('returns report even when exception occurs', function () {
         ->toBeInstanceOf(ValidationReport::class)
         ->and($report->status)->toBe('failed');
 });
-
