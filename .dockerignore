@@ -1,8 +1,49 @@
+# Git
 .git
-node_modules
-vendor
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+application/tests
+application/phpunit.xml
+
+# Node
+application/node_modules
+application/package-lock.json
+
+# Environment
 .env
-storage/*.key
-.env.local
+.env.*
+!.env.example
+
+# Storage
+application/storage/logs/*
+application/storage/framework/cache/*
+application/storage/framework/sessions/*
+application/storage/framework/views/*
+
+# Cache
+application/bootstrap/cache/*
+
+# Vendor (will be installed during build)
+application/vendor
+
+# Build artifacts
+application/public/build
+application/public/hot
+application/public/storage
+
+# OS
 .DS_Store
+Thumbs.db
 
