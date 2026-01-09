@@ -221,5 +221,103 @@
     </div>
     @endif
 </div>
+
+{{-- Charts Section --}}
+<div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+    {{-- Validation Status Chart --}}
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Validation Status Distribution</h3>
+            <canvas id="validationChart" height="250"></canvas>
+        </div>
+    </div>
+
+    {{-- API Status Chart --}}
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">API Status Overview</h3>
+            <canvas id="apiStatusChart" height="250"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation Status Chart
+    const validationCtx = document.getElementById('validationChart');
+    if (validationCtx) {
+        new Chart(validationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Passed', 'Warning', 'Failed'],
+                datasets: [{
+                    data: [
+                        {{ $reportsByStatus['passed'] ?? 0 }},
+                        {{ $reportsByStatus['warning'] ?? 0 }},
+                        {{ $reportsByStatus['failed'] ?? 0 }}
+                    ],
+                    backgroundColor: [
+                        'rgb(34, 197, 94)',  // green
+                        'rgb(251, 191, 36)', // yellow
+                        'rgb(239, 68, 68)'   // red
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+
+    // API Status Chart
+    const apiCtx = document.getElementById('apiStatusChart');
+    if (apiCtx) {
+        new Chart(apiCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Active', 'Deprecated', 'Beta'],
+                datasets: [{
+                    label: 'APIs',
+                    data: [
+                        {{ $apisByStatus['active'] ?? 0 }},
+                        {{ $apisByStatus['deprecated'] ?? 0 }},
+                        {{ $apisByStatus['beta'] ?? 0 }}
+                    ],
+                    backgroundColor: [
+                        'rgb(59, 130, 246)',  // blue
+                        'rgb(251, 191, 36)',  // yellow
+                        'rgb(168, 85, 247)'   // purple
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 @endsection
 

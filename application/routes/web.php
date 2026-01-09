@@ -7,6 +7,7 @@ use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractDiffController;
 use App\Http\Controllers\ContractVersionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MetricsController;
 use Illuminate\Support\Facades\Route;
 
 // Dashboard
@@ -48,3 +49,8 @@ Route::get('/logs', [ActivityLogController::class, 'index'])
     ->name('logs.index');
 Route::get('/logs/{log}', [ActivityLogController::class, 'show'])
     ->name('logs.show');
+
+// Metrics
+Route::get('/metrics', [MetricsController::class, 'index'])
+    ->name('metrics.index');
+
