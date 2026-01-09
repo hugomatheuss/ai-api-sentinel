@@ -1,10 +1,9 @@
 <?php
 
 use App\Actions\CalculateSuccessRateAction;
-use function Pest\Laravel\{actingAs};
 
 beforeEach(function () {
-    $this->action = new CalculateSuccessRateAction();
+    $this->action = new CalculateSuccessRateAction;
 });
 
 test('calculates success rate correctly with valid numbers', function () {
@@ -48,4 +47,3 @@ test('calculates partial success correctly', function () {
 
     expect($rate)->toBe(42.86);
 });
-

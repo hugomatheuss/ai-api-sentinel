@@ -2,34 +2,188 @@
 
 namespace App\Services;
 
+use App\Contracts\LLMClient;
+use App\Exceptions\LLMException;
 use App\Models\ContractVersion;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Serviço de análise semântica usando IA.
  *
  * Analisa contratos OpenAPI para identificar inconsistências conceituais,
  * sugerir melhorias de design, e gerar insights sobre a API.
+ *
+ * Why this exists:
+ * - Provides AI-powered semantic analysis of API contracts
+ * - Identifies naming inconsistencies and design anti-patterns
+ * - Generates human-readable suggestions for API improvements
+ * - Fallsback to rule-based analysis when LLM is unavailable
+ *
+ * Callers should rely on:
+ * - Always getting a result (even if LLM fails)
+ * - Issues returned in consistent format
+ * - LLM being optional enhancement, not requirement
  */
 class AIAnalysisService
 {
+    public function __construct(
+        protected LLMClient $llm,
+        protected CacheService $cache
+    ) {}
+
     /**
      * Analisar um contrato OpenAPI com IA
      */
     public function analyzeContract(ContractVersion $version): array
     {
-        $insights = [];
+        // Try to get from cache first
+        $cacheKey = "ai:analysis:{$version->id}";
 
-        // TODO: Integrar com LLM (OpenAI, Anthropic, ou local)
-        // Por enquanto, retorna análise baseada em regras
+        return $this->cache->remember($cacheKey, 3600, function () use ($version) {
+            if (! $this->llm->isAvailable()) {
+                return $this->fallbackAnalysis($version);
+            }
 
-        $insights[] = [
-            'type' => 'naming_consistency',
+            try {
+                return $this->performLLMAnalysis($version);
+            } catch (LLMException $e) {
+                Log::warning('LLM analysis failed, using fallback', [
+                    'error' => $e->getMessage(),
+                    'version_id' => $version->id,
+                ]);
+
+                return $this->fallbackAnalysis($version);
+            }
+        });
+    }
+
+    /**
+     * Perform LLM-powered analysis.
+     */
+    protected function performLLMAnalysis(ContractVersion $version): array
+    {
+        // Get the OpenAPI contract content
+        $contractContent = $this->getContractContent($version);
+
+        if (empty($contractContent)) {
+            return $this->fallbackAnalysis($version);
+        }
+
+        // Truncate if too long (to fit in context window)
+        if (strlen($contractContent) > 8000) {
+            $contractContent = substr($contractContent, 0, 8000)."\n... (truncated)";
+        }
+
+        $prompt = $this->buildAnalysisPrompt($contractContent, $version);
+
+        try {
+            $response = $this->llm->chat([
+                ['role' => 'system', 'content' => 'You are an API design expert. Analyze OpenAPI contracts and provide concise, actionable feedback.'],
+                ['role' => 'user', 'content' => $prompt],
+            ], [
+                'temperature' => 0.3, // Lower temperature for more consistent analysis
+                'max_tokens' => 1024,
+            ]);
+
+            return $this->parseLLMResponse($response['content']);
+        } catch (\Exception $e) {
+            Log::error('Error parsing LLM response', ['error' => $e->getMessage()]);
+
+            return $this->fallbackAnalysis($version);
+        }
+    }
+
+    /**
+     * Build the analysis prompt for the LLM.
+     */
+    protected function buildAnalysisPrompt(string $contractContent, ContractVersion $version): string
+    {
+        return <<<'PROMPT'
+Analyze this OpenAPI contract and identify:
+1. Naming inconsistencies (plural/singular, casing)
+2. Missing or poor descriptions
+3. Design anti-patterns
+4. Security concerns
+5. REST best practices violations
+
+Return your analysis as a JSON array of issues with this format:
+[
+  {
+    "type": "naming_inconsistency",
+    "severity": "warning",
+    "message": "Endpoint uses singular form instead of plural",
+    "category": "naming"
+  }
+]
+
+OpenAPI Contract:
+PROMPT."\n{$contractContent}\n\nProvide only the JSON array, no additional text.";
+    }
+
+    /**
+     * Parse LLM response into issues array.
+     */
+    protected function parseLLMResponse(string $response): array
+    {
+        // Try to extract JSON from response
+        $json = $this->extractJSON($response);
+
+        if ($json) {
+            $issues = json_decode($json, true);
+            if (is_array($issues)) {
+                return $issues;
+            }
+        }
+
+        // Fallback: parse as text
+        return [[
+            'type' => 'ai_analysis',
             'severity' => 'info',
-            'message' => 'AI analysis is not yet configured. Add your LLM API key to enable semantic analysis.',
+            'message' => trim($response),
             'category' => 'ai',
-        ];
+        ]];
+    }
 
-        return $insights;
+    /**
+     * Extract JSON from LLM response.
+     */
+    protected function extractJSON(string $text): ?string
+    {
+        // Try to find JSON array in the text
+        if (preg_match('/\[[\s\S]*\]/', $text, $matches)) {
+            return $matches[0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get contract content from storage.
+     */
+    protected function getContractContent(ContractVersion $version): string
+    {
+        try {
+            if (Storage::exists($version->file_path)) {
+                return Storage::get($version->file_path);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not read contract file', [
+                'version_id' => $version->id,
+                'file_path' => $version->file_path,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return '';
+    }
+
+    /**
+     * Fallback analysis when LLM is unavailable.
+     */
+    protected function fallbackAnalysis(ContractVersion $version): array
+    {
+        return $this->analyzeNaming($version);
     }
 
     /**
@@ -37,12 +191,8 @@ class AIAnalysisService
      */
     public function generateSuggestions(ContractVersion $version): array
     {
-        $suggestions = [];
-
-        // Placeholder para análise de IA
-        // TODO: Implementar chamada ao LLM
-
-        return $suggestions;
+        // Use same analysis as main method
+        return $this->analyzeContract($version);
     }
 
     /**
@@ -53,13 +203,10 @@ class AIAnalysisService
         $issues = [];
 
         foreach ($version->endpoints as $endpoint) {
-            // Verificar consistência básica de nomenclatura
             $path = $endpoint->path;
 
             // Check for plural vs singular
-            if (preg_match('/\/[a-z]+s\/\{[a-z]+Id\}/', $path)) {
-                // Good: /users/{userId}
-            } elseif (preg_match('/\/[a-z]+\/\{[a-z]+Id\}/', $path)) {
+            if (preg_match('/\/[a-z]+\/\{[a-z]+Id\}/', $path) && ! preg_match('/\/[a-z]+s\/\{[a-z]+Id\}/', $path)) {
                 $issues[] = [
                     'type' => 'naming_inconsistency',
                     'severity' => 'info',
@@ -93,7 +240,6 @@ class AIAnalysisService
     {
         $changes = [];
 
-        // Análise básica de mudanças
         $oldEndpointCount = $oldVersion->endpoints->count();
         $newEndpointCount = $newVersion->endpoints->count();
 
@@ -104,9 +250,6 @@ class AIAnalysisService
             $diff = $oldEndpointCount - $newEndpointCount;
             $changes[] = "🗑️ Removed {$diff} endpoint".($diff > 1 ? 's' : '');
         }
-
-        // TODO: Usar LLM para gerar descrição mais detalhada e semântica
-        // Exemplo: "Refactored user authentication endpoints to support OAuth2"
 
         if (empty($changes)) {
             $changes[] = 'No significant changes detected';

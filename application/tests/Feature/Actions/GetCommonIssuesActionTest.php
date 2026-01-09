@@ -1,10 +1,12 @@
 <?php
 
 use App\Actions\GetCommonIssuesAction;
-use App\Models\ValidationReport;
 use App\Models\Contract;
 use App\Models\ContractVersion;
-use function Pest\Laravel\{actingAs};
+use App\Models\ValidationReport;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->action = app(GetCommonIssuesAction::class);
@@ -120,4 +122,3 @@ test('sorts issues by frequency descending', function () {
     expect($result->keys()->first())->toBe('common')
         ->and($result->first())->toBe(3);
 });
-

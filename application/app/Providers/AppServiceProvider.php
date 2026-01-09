@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\LLMClient;
+use App\Services\LLM\GroqClient;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,7 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind LLM Client implementation
+        $this->app->bind(LLMClient::class, GroqClient::class);
     }
 
     /**
