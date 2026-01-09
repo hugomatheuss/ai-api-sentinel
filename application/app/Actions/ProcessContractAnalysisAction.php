@@ -79,9 +79,18 @@ class ProcessContractAnalysisAction implements HandlesAction
             // Validate contract structure
             $issues = $this->validator->validate($openapi);
 
-            // AI-powered analysis
-            $aiInsights = $this->aiAnalysis->analyzeNaming($version);
+            // AI-powered analysis (uses LLM if available, fallback to rules)
+            $aiInsights = $this->aiAnalysis->analyzeContract($version);
             $qualityScore = $this->aiAnalysis->calculateQualityScore($version);
+
+            // Save quality score in version metadata
+            $currentMetadata = $version->metadata ?? [];
+            $version->update([
+                'metadata' => array_merge($currentMetadata, [
+                    'quality_score' => $qualityScore,
+                    'ai_analysis_date' => now()->toIso8601String(),
+                ]),
+            ]);
 
             // Merge AI insights with validation issues
             $issues = array_merge($issues, $aiInsights);
