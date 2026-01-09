@@ -1,9 +1,12 @@
 <?php
 
 use App\Actions\GetValidationTrendsAction;
-use App\Models\ValidationReport;
 use App\Models\Contract;
 use App\Models\ContractVersion;
+use App\Models\ValidationReport;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->action = app(GetValidationTrendsAction::class);
@@ -120,4 +123,3 @@ test('orders results by date ascending', function () {
 
     expect($dates)->toBe($sortedDates);
 });
-

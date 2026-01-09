@@ -74,5 +74,7 @@ class DispatchContractWebhooksAction implements HandlesAction
                 'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
             ]);
         }
+
+        return null;
     }
 }
