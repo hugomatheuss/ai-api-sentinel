@@ -2,20 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
+use App\Actions\CalculateSuccessRateAction;
+use App\Actions\GetActivityTrendsAction;
+use App\Actions\GetBreakingChangesTrendsAction;
+use App\Actions\GetCommonIssuesAction;
+use App\Actions\GetValidationTrendsAction;
 use App\Models\ValidationReport;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Metrics controller for advanced analytics and reporting.
+ *
+ * This controller coordinates the display of various metrics and analytics
+ * for the API governance platform, delegating business logic to Actions.
+ *
+ * Why this exists:
+ * - Provides a single entry point for the metrics dashboard
+ * - Coordinates caching of expensive metrics calculations
+ * - Handles HTTP concerns (request/response) while delegating business logic
+ *
+ * Callers should rely on:
+ * - The index method returning a view with comprehensive metrics data
  */
 class MetricsController extends Controller
 {
-    public function __construct(protected CacheService $cache)
-    {
-    }
+    public function __construct(protected CacheService $cache) {}
 
     /**
      * Show metrics dashboard
@@ -24,7 +36,7 @@ class MetricsController extends Controller
     {
         $days = $request->get('days', 30);
 
-        $metrics = $this->cache->remember("metrics:dashboard:{$days}", 600, function() use ($days) {
+        $metrics = $this->cache->remember("metrics:dashboard:{$days}", 600, function () use ($days) {
             return $this->calculateMetrics($days);
         });
 
@@ -38,61 +50,18 @@ class MetricsController extends Controller
     {
         $startDate = now()->subDays($days);
 
-        // Validation trends (daily)
-        $validationTrends = ValidationReport::select(
-            DB::raw('DATE(created_at) as date'),
-            DB::raw('COUNT(*) as total'),
-            DB::raw('SUM(CASE WHEN status = \'passed\' THEN 1 ELSE 0 END) as passed'),
-            DB::raw('SUM(CASE WHEN status = \'failed\' THEN 1 ELSE 0 END) as failed')
-        )
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get();
+        // Use Actions for all business logic
+        $validationTrends = app(GetValidationTrendsAction::class)->handle($days);
+        $activityTrends = app(GetActivityTrendsAction::class)->handle($days);
+        $breakingChangesTrends = app(GetBreakingChangesTrendsAction::class)->handle($days);
+        $commonIssues = app(GetCommonIssuesAction::class)->handle($days);
 
-        // Activity trends
-        $activityTrends = ActivityLog::select(
-            DB::raw('DATE(created_at) as date'),
-            'log_name',
-            DB::raw('COUNT(*) as count')
-        )
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('date', 'log_name')
-            ->orderBy('date')
-            ->get()
-            ->groupBy('date');
-
-        // Breaking changes trends
-        $breakingChangesTrends = ValidationReport::select(
-            DB::raw('DATE(created_at) as date'),
-            DB::raw('COUNT(*) as count')
-        )
-            ->whereNotNull('breaking_changes')
-            ->whereRaw('json_array_length(breaking_changes) > 0')
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get();
-
-        // Most common issues
-        $commonIssues = ValidationReport::whereNotNull('issues')
-            ->where('created_at', '>=', $startDate)
-            ->get()
-            ->flatMap(function($report) {
-                return collect($report->issues ?? [])
-                    ->pluck('type')
-                    ->filter();
-            })
-            ->countBy()
-            ->sortDesc()
-            ->take(10);
-
-        // Success rate
+        // Calculate success rate
         $totalValidations = ValidationReport::where('created_at', '>=', $startDate)->count();
         $passedValidations = ValidationReport::where('created_at', '>=', $startDate)
             ->where('status', 'passed')
             ->count();
-        $successRate = $totalValidations > 0 ? round(($passedValidations / $totalValidations) * 100, 1) : 0;
+        $successRate = app(CalculateSuccessRateAction::class)->handle($totalValidations, $passedValidations);
 
         return [
             'validationTrends' => $validationTrends,
@@ -104,4 +73,3 @@ class MetricsController extends Controller
         ];
     }
 }
-
