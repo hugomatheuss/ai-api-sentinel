@@ -16,7 +16,9 @@ class CacheService
      * Cache TTL in seconds
      */
     protected const DEFAULT_TTL = 3600; // 1 hour
+
     protected const VALIDATION_TTL = 1800; // 30 minutes
+
     protected const CONTRACT_TTL = 7200; // 2 hours
 
     /**
@@ -34,6 +36,7 @@ class CacheService
     public function getCachedValidation(int $versionId): ?array
     {
         $key = $this->validationKey($versionId);
+
         return Cache::get($key);
     }
 
@@ -52,6 +55,7 @@ class CacheService
     public function getCachedParsedContract(int $versionId): ?array
     {
         $key = $this->parsedContractKey($versionId);
+
         return Cache::get($key);
     }
 
@@ -70,6 +74,7 @@ class CacheService
     public function getCachedBreakingChanges(int $oldVersionId, int $newVersionId): ?array
     {
         $key = $this->breakingChangesKey($oldVersionId, $newVersionId);
+
         return Cache::get($key);
     }
 
@@ -141,4 +146,3 @@ class CacheService
         return "breaking_changes:{$oldVersionId}:{$newVersionId}";
     }
 }
-

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Actions;
 
+use App\Contracts\HandlesAction;
 use App\Models\Contract;
 use App\Models\ContractVersion;
 use App\Models\ValidationReport;
@@ -10,50 +11,43 @@ use App\Services\AIAnalysisService;
 use App\Services\BreakingChangesDetector;
 use App\Services\ContractParserService;
 use App\Services\ContractValidatorService;
-use App\Services\WebhookService;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Handles analysis and validation of API contracts.
+ * Process and analyze a contract version.
  *
- * This controller orchestrates the analysis of OpenAPI contracts,
- * including structural validation, breaking change detection,
- * and generation of validation reports.
+ * This action orchestrates the complete analysis workflow for a contract version,
+ * including parsing, validation, AI analysis, breaking change detection, and reporting.
+ *
+ * Why extracted here:
+ * - Encapsulates complex multi-step analysis workflow
+ * - Makes the controller thin and focused on HTTP concerns
+ * - Enables reuse in queue jobs, CLI commands, or API endpoints
+ * - Centralizes all analysis business logic for easier testing
+ *
+ * Callers should rely on:
+ * - Receiving a ValidationReport with complete analysis results
+ * - The action handling all errors and returning appropriate status
  */
-class ContractAnalysisController extends Controller
+class ProcessContractAnalysisAction implements HandlesAction
 {
     public function __construct(
         protected ContractParserService $parser,
         protected ContractValidatorService $validator,
         protected BreakingChangesDetector $breakingChangesDetector,
         protected AIAnalysisService $aiAnalysis,
-        protected WebhookService $webhookService,
         protected ActivityLogger $logger
     ) {}
 
     /**
-     * Show the analysis overview page for a contract version.
+     * Process contract analysis.
+     *
+     * @param  mixed  ...$parameters  First: Contract, Second: ContractVersion
+     * @return ValidationReport
      */
-    public function show(Contract $contract, ContractVersion $version)
+    public function handle(mixed ...$parameters): mixed
     {
-        $version->load(['endpoints', 'validationReports']);
-
-        // Get previous version for comparison if exists
-        $previousVersion = ContractVersion::where('contract_id', $contract->id)
-            ->where('id', '<', $version->id)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        return view('contract-versions.analyze', compact('contract', 'version', 'previousVersion'));
-    }
-
-    /**
-     * Process and analyze a contract version.
-     */
-    public function process(Contract $contract, ContractVersion $version)
-    {
-        // TODO: Queue job for async processing
-        // For now, we'll do synchronous processing
+        [$contract, $version] = $parameters;
 
         $issues = [];
         $breakingChanges = [];
@@ -99,7 +93,7 @@ class ContractAnalysisController extends Controller
                 ->first();
 
             if ($previousVersion && $previousVersion->file_path) {
-                // Compare versions and detect breaking changes using dedicated service
+                // Compare versions and detect breaking changes
                 $breakingChanges = $this->breakingChangesDetector->detect($previousVersion, $version);
             }
 
@@ -140,12 +134,11 @@ class ContractAnalysisController extends Controller
                     'breaking_changes_count' => count($breakingChanges),
                 ]);
 
-            // Dispatch webhooks
-            $this->dispatchWebhooks($contract, $version, $report, $breakingChanges);
+            return $report;
 
         } catch (\Exception $e) {
             // Handle parsing errors
-            $report = ValidationReport::create([
+            return ValidationReport::create([
                 'contract_version_id' => $version->id,
                 'status' => 'failed',
                 'issues' => [
@@ -160,73 +153,6 @@ class ContractAnalysisController extends Controller
                 'error_count' => 1,
                 'warning_count' => 0,
                 'processed_at' => now(),
-            ]);
-        }
-
-        return redirect()
-            ->route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id])
-            ->with('success', 'Contract analysis completed successfully.');
-    }
-
-    /**
-     * Show the analysis report for a contract version.
-     */
-    public function report(Contract $contract, ContractVersion $version)
-    {
-        $version->load(['endpoints', 'validationReports']);
-
-        $latestReport = $version->validationReports()
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        // Get previous version for comparison
-        $previousVersion = ContractVersion::where('contract_id', $contract->id)
-            ->where('id', '<', $version->id)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        return view('contract-versions.report', compact('contract', 'version', 'latestReport', 'previousVersion'));
-    }
-
-    /**
-     * Dispatch webhooks for validation events
-     */
-    protected function dispatchWebhooks(Contract $contract, ContractVersion $version, ValidationReport $report, array $breakingChanges): void
-    {
-        // Dispatch appropriate event based on validation result
-        if ($report->status === 'failed') {
-            $this->webhookService->dispatch('contract.failed', [
-                'contract_id' => $contract->id,
-                'contract_title' => $contract->title,
-                'version' => $version->version,
-                'error_count' => $report->error_count,
-                'warning_count' => $report->warning_count,
-                'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
-            ]);
-        } else {
-            $this->webhookService->dispatch('contract.validated', [
-                'contract_id' => $contract->id,
-                'contract_title' => $contract->title,
-                'version' => $version->version,
-                'status' => $report->status,
-                'error_count' => $report->error_count,
-                'warning_count' => $report->warning_count,
-                'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
-            ]);
-        }
-
-        // Dispatch breaking changes event if detected
-        if (! empty($breakingChanges)) {
-            $criticalCount = collect($breakingChanges)->where('severity', 'critical')->count();
-
-            $this->webhookService->dispatch('breaking_changes.detected', [
-                'contract_id' => $contract->id,
-                'contract_title' => $contract->title,
-                'version' => $version->version,
-                'total_changes' => count($breakingChanges),
-                'critical_changes' => $criticalCount,
-                'changes' => $breakingChanges,
-                'report_url' => route('contracts.versions.report', ['contract' => $contract->id, 'version' => $version->id]),
             ]);
         }
     }
