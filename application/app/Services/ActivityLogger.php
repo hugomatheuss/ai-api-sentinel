@@ -87,9 +87,8 @@ class ActivityLogger
      */
     public static function activity(string $logName): self
     {
-        return new self();
+        return new self;
     }
 
     protected ?ActivityLog $activity = null;
 }
-

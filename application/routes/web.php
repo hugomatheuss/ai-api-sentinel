@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ContractAnalysisController;
 use App\Http\Controllers\ContractController;
@@ -41,3 +42,9 @@ Route::get('/contracts/{contract}/versions/{version}/report', [ContractAnalysisC
 // Diff comparison
 Route::get('/contracts/{contract}/diff/{oldVersion}/{newVersion}', [ContractDiffController::class, 'compare'])
     ->name('contracts.diff');
+
+// Activity logs
+Route::get('/logs', [ActivityLogController::class, 'index'])
+    ->name('logs.index');
+Route::get('/logs/{log}', [ActivityLogController::class, 'show'])
+    ->name('logs.show');

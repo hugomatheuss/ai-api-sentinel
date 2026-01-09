@@ -79,4 +79,3 @@ class ActivityLog extends Model
             ->where('subject_id', $subject->id);
     }
 }
-

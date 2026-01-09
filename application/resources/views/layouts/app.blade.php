@@ -25,6 +25,9 @@
                         <a href="{{ route('apis.index') }}" class="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">
                             APIs
                         </a>
+                        <a href="{{ route('logs.index') }}" class="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">
+                            Activity Logs
+                        </a>
                         <a href="/health" class="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">
                             Health
                         </a>

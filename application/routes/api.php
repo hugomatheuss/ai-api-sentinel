@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ApiTokenController;
 use App\Http\Controllers\Api\ContractValidationController;
 use App\Http\Controllers\Api\WebhookController;
@@ -68,5 +69,12 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/webhooks/{id}/test', [WebhookController::class, 'test'])
             ->name('api.webhooks.test');
+
+        // Activity logs
+        Route::get('/logs', [ActivityLogController::class, 'index'])
+            ->name('api.logs.index');
+
+        Route::get('/logs/stats', [ActivityLogController::class, 'stats'])
+            ->name('api.logs.stats');
     });
 });
